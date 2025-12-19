@@ -2,25 +2,39 @@ require('dotenv').config();
 const express = require('express');
 const nodemailer = require('nodemailer');
 const path = require('path');
-const { Low } = require('lowdb');
-const { JSONFile } = require('lowdb/node');
-const cron = require('node-cron');
+const mongoose = require('mongoose');
 
 const app = express();
 const port = process.env.PORT || 3000;
 
-// ===== LOWDB SETUP – ĐÃ FIX LỖI "missing default data" =====
-const adapter = new JSONFile('db.json');
-const defaultData = { plans: [] };
-const db = new Low(adapter, defaultData);
+// ===== KẾT NỐI MONGODB =====
+mongoose.connect(process.env.MONGODB_URI)
+  .then(() => console.log('✅ Đã kết nối MongoDB thành công'))
+  .catch(err => {
+    console.error('❌ Lỗi kết nối MongoDB:', err);
+    process.exit(1);
+  });
 
-async function initDb() {
-    await db.read();
-    await db.write(); // Tạo file db.json nếu chưa tồn tại
-}
-// =========================================================
+// Schema cho Plan
+const planSchema = new mongoose.Schema({
+    date: { type: String, required: true, unique: true }, // YYYY-MM-DD
+    tasks: [{
+        text: String,
+        completed: { type: Boolean, default: false }
+    }],
+    vocab: [{
+        text: String,
+        completed: { type: Boolean, default: false }
+    }],
+    meals: { type: String, default: '' },
+    expenses: { type: String, default: '' },
+    morningTime: { type: String, default: null }, // HH:MM hoặc null
+    eveningTime: { type: String, default: null }
+});
 
-// Nodemailer
+const Plan = mongoose.model('Plan', planSchema);
+
+// ===== NODEMAILER =====
 const transporter = nodemailer.createTransport({
     service: 'gmail',
     auth: {
@@ -42,140 +56,144 @@ app.get(['/today', '/day/:date'], (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'todo.html'));
 });
 
-// API: Lấy kế hoạch
+// API: Lấy kế hoạch theo ngày
 app.get('/api/plan/:date', async (req, res) => {
-    await db.read();
-    const plan = db.data.plans.find(p => p.date === req.params.date) || {
-        date: req.params.date,
-        tasks: [],
-        vocab: [],
-        meals: '',
-        expenses: ''
-    };
+    try {
+        let plan = await Plan.findOne({ date: req.params.date });
 
-    const normalizedTasks = (plan.tasks || []).map(t =>
-        typeof t === 'string' ? { text: t, completed: false } : t
-    );
+        if (!plan) {
+            plan = {
+                date: req.params.date,
+                tasks: [],
+                vocab: [],
+                meals: '',
+                expenses: '',
+                morningTime: null,
+                eveningTime: null
+            };
+        }
 
-    let normalizedVocab = [];
-    if (typeof plan.vocab === 'string' && plan.vocab.trim()) {
-        normalizedVocab = plan.vocab.split('\n')
-            .filter(l => l.trim())
-            .map(l => ({ text: l.trim(), completed: false }));
-    } else if (Array.isArray(plan.vocab)) {
-        normalizedVocab = plan.vocab.map(v =>
-            typeof v === 'string' ? { text: v, completed: false } : v
-        );
+        res.json(plan);
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: 'Lỗi server' });
     }
-
-    res.json({
-        date: req.params.date,
-        tasks: normalizedTasks,
-        vocab: normalizedVocab,
-        meals: plan.meals || '',
-        expenses: plan.expenses || ''
-    });
 });
 
 // API: Tick task
 app.post('/api/plan/:date/complete', async (req, res) => {
-    await db.read();
-    const { taskIndex } = req.body;
-    const plan = db.data.plans.find(p => p.date === req.params.date);
-    if (plan && taskIndex >= 0 && taskIndex < plan.tasks.length) {
-        plan.tasks[taskIndex].completed = !plan.tasks[taskIndex].completed;
-        await db.write();
+    try {
+        const { taskIndex } = req.body;
+        const plan = await Plan.findOne({ date: req.params.date });
+        if (plan && taskIndex >= 0 && taskIndex < plan.tasks.length) {
+            plan.tasks[taskIndex].completed = !plan.tasks[taskIndex].completed;
+            await plan.save();
+        }
+        res.json({ success: true });
+    } catch (err) {
+        res.status(500).json({ error: 'Lỗi' });
     }
-    res.json({ success: true });
 });
 
 // API: Tick vocab
 app.post('/api/plan/:date/vocab-complete', async (req, res) => {
-    await db.read();
-    const { vocabIndex } = req.body;
-    const plan = db.data.plans.find(p => p.date === req.params.date);
-    if (plan && vocabIndex >= 0 && vocabIndex < plan.vocab.length) {
-        plan.vocab[vocabIndex].completed = !plan.vocab[vocabIndex].completed;
-        await db.write();
+    try {
+        const { vocabIndex } = req.body;
+        const plan = await Plan.findOne({ date: req.params.date });
+        if (plan && vocabIndex >= 0 && vocabIndex < plan.vocab.length) {
+            plan.vocab[vocabIndex].completed = !plan.vocab[vocabIndex].completed;
+            await plan.save();
+        }
+        res.json({ success: true });
+    } catch (err) {
+        res.status(500).json({ error: 'Lỗi' });
     }
-    res.json({ success: true });
 });
 
-// API: Lưu kế hoạch (từ trang lập kế hoạch)
+// API: Lưu kế hoạch
+// API: Lưu kế hoạch - Hỗ trợ cả 2 định dạng cũ và mới để tránh lỗi
 app.post('/api/plan', async (req, res) => {
-    await db.read();
+    try {
+        let { date, tasks = [], vocab = [], meals = '', expenses = '', morningTime, eveningTime } = req.body;
 
-    const { date, tasks, vocab, meals, expenses } = req.body;
+        // Chuẩn hóa tasks: nếu client gửi array string → chuyển thành object
+        if (tasks.length > 0 && typeof tasks[0] === 'string') {
+            tasks = tasks.map(text => ({ text: text.trim(), completed: false }));
+        } else if (tasks.length > 0) {
+            // Đảm bảo mỗi task là object hợp lệ
+            tasks = tasks.map(task => ({
+                text: typeof task === 'object' && task.text ? task.text.trim() : '',
+                completed: !!task.completed
+            })).filter(task => task.text);
+        }
 
-    const normalizedTasks = (Array.isArray(tasks) ? tasks : [])
-        .filter(t => t && t.trim())
-        .map(t => ({ text: t.trim(), completed: false }));
+        // Chuẩn hóa vocab tương tự
+        if (vocab.length > 0 && typeof vocab[0] === 'string') {
+            vocab = vocab.map(text => ({ text: text.trim(), completed: false }));
+        } else if (vocab.length > 0) {
+            vocab = vocab.map(item => ({
+                text: typeof item === 'object' && item.text ? item.text.trim() : '',
+                completed: !!item.completed
+            })).filter(item => item.text);
+        }
 
-    const vocabArray = typeof vocab === 'string'
-        ? vocab.split('\n')
-            .filter(l => l.trim())
-            .map(l => ({ text: l.trim(), completed: false }))
-        : [];
+        const updatedData = {
+            date,
+            tasks,
+            vocab,
+            meals: meals.trim() || '',
+            expenses: expenses.trim() || '',
+            morningTime: morningTime || null,
+            eveningTime: eveningTime || null
+        };
 
-    const newPlan = {
-        date,
-        tasks: normalizedTasks,
-        vocab: vocabArray,
-        meals: meals?.trim() || '',
-        expenses: expenses?.trim() || ''
-    };
-    console.log('Received new plan:', newPlan);
+        console.log('Đã chuẩn hóa và lưu kế hoạch:', updatedData);
 
-    const index = db.data.plans.findIndex(p => p.date === date);
-    if (index !== -1) {
-        db.data.plans[index] = newPlan;
-    } else {
-        db.data.plans.push(newPlan);
+        await Plan.findOneAndUpdate(
+            { date },
+            updatedData,
+            { upsert: true, new: true, setDefaultsOnInsert: true }
+        );
+
+        res.json({ success: true });
+    } catch (err) {
+        console.error('Lỗi lưu kế hoạch:', err);
+        res.status(500).json({ error: 'Lỗi lưu kế hoạch', details: err.message });
     }
-
-    await db.write();
-
-    res.json({ success: true });
 });
 
-// API: Xóa
+// API: Xóa kế hoạch
 app.delete('/api/plan/:date', async (req, res) => {
-    await db.read();
-    db.data.plans = db.data.plans.filter(p => p.date !== req.params.date);
-    await db.write();
-    res.json({ success: true });
+    try {
+        await Plan.deleteOne({ date: req.params.date });
+        res.json({ success: true });
+    } catch (err) {
+        res.status(500).json({ error: 'Lỗi xóa' });
+    }
 });
 
-// ===== GỬI EMAIL ĐẦU NGÀY (8h sáng) =====
-function sendMorningEmail() {
+// API: Lấy tất cả các ngày có kế hoạch
+app.get('/api/all-dates', async (req, res) => {
+    const allPlans = await Plan.find({}, { date: 1 });
+    const dates = allPlans.map(p => p.date);
+    res.json(dates);
+});
+
+// ===== GỬI EMAIL BUỔI SÁNG =====
+async function sendMorningEmail() {
     const today = new Date().toISOString().slice(0, 10);
     const appUrl = process.env.APP_URL || `http://localhost:${port}`;
 
-    db.read().then(() => {
-        const plan = db.data.plans.find(p => p.date === today) || { tasks: [], vocab: [], meals: '', expenses: '' };
-        const taskCount = plan.tasks.length || 0;
-        const vocabCount = plan.vocab.length || 0;
+    try {
+        const plan = await Plan.findOne({ date: today }) || { tasks: [], vocab: [], meals: '', expenses: '' };
+        const taskCount = plan.tasks.length;
+        const vocabCount = plan.vocab.length;
 
         const htmlContent = `
-            <html><head><style>
-                body { font-family: system-ui, sans-serif; background: #f0fdf4; padding: 20px; }
-                .container { max-width: 600px; margin: auto; background: white; border-radius: 16px; padding: 40px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); text-align: center; }
-                h2 { color: #16a34a; font-size: 28px; }
-                .btn { display: inline-block; margin: 30px 0; padding: 16px 32px; background: #16a34a; color: white; text-decoration: none; border-radius: 12px; font-weight: bold; font-size: 18px; }
-                .summary { background: #ecfdf5; padding: 20px; border-radius: 12px; margin: 20px 0; font-size: 18px; }
-            </style></head><body>
-                <div class="container">
-                    <h2>☀️ Chào buổi sáng! Kế hoạch hôm nay ${today}</h2>
-                    <div class="summary">
-                        <strong>${taskCount} công việc</strong> đang chờ bạn<br>
-                        <strong>${vocabCount} từ vựng mới</strong> cần học
-                    </div>
-                    <p>Hãy bắt đầu ngày mới thật năng lượng nhé!</p>
-                    <a href="${appUrl}/day/${today}" class="btn">Xem & Tick Kế Hoạch Ngay →</a>
-                    <hr style="margin:40px 0;border:none;border-top:1px solid #eee;">
-                    <small>Ăn uống dự kiến: ${plan.meals || 'Chưa ghi'} | Chi tiêu: ${plan.expenses || '0 VNĐ'}</small>
-                </div>
-            </body></html>
+        <h2>☀️ Chào buổi sáng! Kế hoạch hôm nay ${today}</h2>
+        <p><strong>Công việc:</strong> ${taskCount} việc</p>
+        <p><strong>Từ vựng:</strong> ${vocabCount} từ</p>
+        <p><a href="${appUrl}/today">Mở ứng dụng để bắt đầu</a></p>
         `;
 
         const mailOptions = {
@@ -185,54 +203,31 @@ function sendMorningEmail() {
             html: htmlContent
         };
 
-        transporter.sendMail(mailOptions, (err, info) => {
-            err ? console.error('Lỗi email sáng:', err) : console.log('Email sáng gửi thành công:', info.response);
-        });
-    });
+        await transporter.sendMail(mailOptions);
+        console.log('✅ Email sáng gửi thành công');
+    } catch (err) {
+        console.error('❌ Lỗi gửi email sáng:', err);
+    }
 }
 
-// ===== GỬI EMAIL CUỐI NGÀY (20h tối) =====
-function sendEveningEmail() {
+// ===== GỬI EMAIL BUỔI TỐI =====
+async function sendEveningEmail() {
     const today = new Date().toISOString().slice(0, 10);
     const appUrl = process.env.APP_URL || `http://localhost:${port}`;
 
-    db.read().then(() => {
-        const plan = db.data.plans.find(p => p.date === today) || { tasks: [], vocab: [], meals: '', expenses: '' };
+    try {
+        const plan = await Plan.findOne({ date: today }) || { tasks: [], vocab: [], meals: '', expenses: '' };
         
         const completedTasks = plan.tasks.filter(t => t.completed).length;
         const taskCount = plan.tasks.length;
         const taskPercent = taskCount > 0 ? Math.round((completedTasks / taskCount) * 100) : 100;
 
-        const completedVocab = plan.vocab.filter(v => v.completed).length;
-        const vocabCount = plan.vocab.length;
-        const vocabPercent = vocabCount > 0 ? Math.round((completedVocab / vocabCount) * 100) : 100;
-
         const emoji = taskPercent >= 80 ? '🎉' : taskPercent >= 50 ? '👍' : '💪';
 
         const htmlContent = `
-            <html><head><style>
-                body { font-family: system-ui, sans-serif; background: #fff7ed; padding: 20px; }
-                .container { max-width: 600px; margin: auto; background: white; border-radius: 16px; padding: 40px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); text-align: center; }
-                h2 { color: #f97316; font-size: 28px; }
-                .btn { display: inline-block; margin: 30px 0; padding: 16px 32px; background: #f97316; color: white; text-decoration: none; border-radius: 12px; font-weight: bold; font-size: 18px; }
-                .summary { background: #fff4e6; padding: 25px; border-radius: 12px; margin: 20px 0; font-size: 18px; }
-                .progress { font-size: 36px; font-weight: bold; color: #f97316; margin: 20px 0; }
-            </style></head><body>
-                <div class="container">
-                    <h2>${emoji} Tóm tắt ngày hôm nay – ${today}</h2>
-                    <div class="progress">${taskPercent}%</div>
-                    <div class="summary">
-                        <strong>${completedTasks}/${taskCount}</strong> công việc hoàn thành<br>
-                        <strong>${completedVocab}/${vocabCount}</strong> từ vựng đã học<br><br>
-                        Chi tiêu: ${plan.expenses || '0 VNĐ'}<br>
-                        Ăn uống: ${plan.meals || 'Chưa ghi'}
-                    </div>
-                    <p>Bạn đã làm rất tốt hôm nay! ${taskPercent >= 80 ? 'Xuất sắc!' : 'Cố lên ngày mai nhé!'}</p>
-                    <a href="${appUrl}/day/${today}" class="btn">Xem Chi Tiết & Tick Thêm →</a>
-                    <hr style="margin:40px 0;border:none;border-top:1px solid #eee;">
-                    <small>Nghỉ ngơi thật tốt để ngày mai tiếp tục bùng nổ nhé! 🌙</small>
-                </div>
-            </body></html>
+        <h2>${emoji} Tổng kết ngày ${today}</h2>
+        <p>Bạn đã hoàn thành <strong>${taskPercent}%</strong> công việc (${completedTasks}/${taskCount})</p>
+        <p><a href="${appUrl}/today">Xem chi tiết</a></p>
         `;
 
         const mailOptions = {
@@ -242,29 +237,53 @@ function sendEveningEmail() {
             html: htmlContent
         };
 
-        transporter.sendMail(mailOptions, (err, info) => {
-            err ? console.error('Lỗi email tối:', err) : console.log('Email tối gửi thành công:', info.response);
-        });
-    });
+        await transporter.sendMail(mailOptions);
+        console.log('✅ Email tối gửi thành công');
+    } catch (err) {
+        console.error('❌ Lỗi gửi email tối:', err);
+    }
 }
 
-// ===== LÊN LỊCH 2 EMAIL MỖI NGÀY =====
-cron.schedule('0 8 * * *', sendMorningEmail); 
-cron.schedule('35 20 * * *', sendEveningEmail);
+// ===== BIẾN THEO DÕI NGÀY ĐÃ GỬI EMAIL (reset mỗi ngày mới) =====
+let lastMorningSentDate = null;
+let lastEveningSentDate = null;
 
+// ===== KIỂM TRA VÀ GỬI EMAIL MỖI PHÚT =====
+async function checkAndSendEmails() {
+    const now = new Date();
+    const today = now.toISOString().slice(0, 10);
+    const currentMinute = now.toTimeString().slice(0, 5); // HH:MM
 
-console.log('Đã lên lịch:');
-console.log('  ☀️ Email chào buổi sáng: 8:00 hàng ngày');
-console.log('  🌙 Email tổng kết cuối ngày: 20:00 hàng ngày');
+    try {
+        const plan = await Plan.findOne({ date: today });
 
-// Khởi động
-async function startServer() {
-    await initDb();
-    app.listen(port, '0.0.0.0', () => {
-        console.log(`Server chạy tại http://localhost:${port}`);
-        console.log(`- Lập kế hoạch: http://localhost:${port}/`);
-        console.log(`- Tick hôm nay: http://localhost:${port}/today`);
-    });
+        const morningTime = plan?.morningTime || '08:00';
+        const eveningTime = plan?.eveningTime || '20:00';
+
+        // Gửi email sáng nếu đúng giờ và chưa gửi hôm nay
+        if (currentMinute === morningTime && lastMorningSentDate !== today) {
+            await sendMorningEmail();
+            lastMorningSentDate = today;
+        }
+
+        // Gửi email tối nếu đúng giờ và chưa gửi hôm nay
+        if (currentMinute === eveningTime && lastEveningSentDate !== today) {
+            await sendEveningEmail();
+            lastEveningSentDate = today;
+        }
+    } catch (err) {
+        console.error('Lỗi check email:', err);
+    }
 }
 
-startServer();
+// Chạy kiểm tra mỗi phút
+setInterval(checkAndSendEmails, 60 * 1000);
+checkAndSendEmails(); // Chạy ngay khi khởi động
+
+// ===== KHỞI ĐỘNG SERVER =====
+app.listen(port, '0.0.0.0', () => {
+    console.log(`🚀 Server chạy tại http://localhost:${port}`);
+    console.log(`- Trang chủ: http://localhost:${port}/`);
+    console.log(`- Hôm nay: http://localhost:${port}/today`);
+    console.log(`\n🔔 Email sẽ gửi theo thời gian cài đặt từng ngày (mặc định 08:00 & 20:00)`);
+});

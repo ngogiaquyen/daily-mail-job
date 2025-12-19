@@ -1,61 +1,124 @@
 <!DOCTYPE html>
-<html lang="vi">
+<html lang="vi" class="h-full">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Kế Hoạch Hôm Nay</title>
+    <title>Lập Kế Hoạch Hàng Ngày</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
-        tailwind.config = { theme: { extend: { fontFamily: { sans: ['Inter', 'system-ui', 'sans-serif'] } } } }
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['Inter', 'system-ui', 'sans-serif'] }
+                }
+            }
+        }
     </script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <style>
+        html, body { height: 100%; margin: 0; padding: 0; }
+    </style>
 </head>
-<body class="bg-gray-50 min-h-screen">
-    <div class="max-w-3xl mx-auto p-4 sm:p-6 lg:p-8">
-        <div class="bg-white rounded-2xl shadow-xl overflow-hidden mt-8">
-            <div class="bg-gradient-to-r from-green-500 to-emerald-600 text-white p-8 text-center">
-                <h1 class="text-2xl sm:text-3xl font-bold" id="pageTitle">Kế Hoạch Hôm Nay</h1>
-                <p class="text-base sm:text-lg mt-2 opacity-90" id="dateDisplay"></p>
+<body class="bg-gray-100 min-h-screen">
+
+    <!-- [GIAO DIỆN GIỮ NGUYÊN NHƯ CŨ - KHÔNG THAY ĐỔI HTML] -->
+    <div class="max-w-4xl mx-auto p-4 lg:p-8">
+        <div class="bg-white rounded-2xl shadow-xl overflow-hidden">
+
+            <!-- Header -->
+            <div class="bg-gradient-to-r from-indigo-600 to-purple-600 text-white p-8 text-center">
+                <h1 class="text-3xl font-bold">Lập Kế Hoạch Hàng Ngày</h1>
+                <p class="text-lg mt-2 opacity-90">Hãy lên kế hoạch để ngày hôm nay thật hiệu quả!</p>
             </div>
 
-            <div class="p-6 sm:p-8 space-y-8">
-                <!-- Công Việc -->
-                <div>
-                    <h2 class="text-xl font-semibold text-gray-800 mb-4 flex items-center">
-                        <span class="mr-3">✅</span> Công Việc
+            <div class="p-6 lg:p-8 space-y-8">
+
+                <!-- Chọn ngày -->
+                <div class="text-center">
+                    <label class="text-lg font-semibold text-gray-700 block mb-4">Chọn ngày lập kế hoạch</label>
+                    <input type="date" id="datePicker" 
+                           class="px-6 py-4 text-lg border-2 border-indigo-300 rounded-xl focus:border-indigo-500 focus:outline-none w-full max-w-md">
+                </div>
+
+                <!-- Công việc -->
+                <section>
+                    <h2 class="text-xl font-semibold text-gray-800 mb-5 flex items-center">
+                        <span class="mr-3 text-2xl"></span> Công Việc Cần Làm
                     </h2>
-                    <div id="tasksContainer" class="space-y-3"></div>
-                    <p id="noTasks" class="text-gray-500 text-center py-8 text-base hidden">
-                        Không có công việc nào – ngày nghỉ tuyệt vời! 🌴
-                    </p>
-                </div>
 
-                <!-- Từ Vựng -->
-                <div class="bg-blue-50 rounded-xl p-6 border border-blue-200">
-                    <h2 class="text-lg font-semibold text-blue-900 mb-4 flex items-center">
-                        <span class="mr-3">📚</span> Từ Vựng Mới
+                    <div id="tasksList" class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6"></div>
+
+                    <div class="flex gap-3">
+                        <input type="text" id="newTask" placeholder="Thêm công việc mới..." 
+                               class="flex-1 px-5 py-3 border-2 border-gray-300 rounded-xl focus:border-indigo-500 focus:outline-none text-base">
+                        <button type="button" onclick="addTask()" 
+                                class="px-8 py-3 bg-indigo-600 text-white rounded-xl font-semibold hover:bg-indigo-700 transition">
+                            Thêm
+                        </button>
+                    </div>
+                </section>
+
+                <!-- Từ vựng -->
+                <section class="bg-blue-50 rounded-xl p-6 border border-blue-200">
+                    <h2 class="text-xl font-semibold text-blue-900 mb-5 flex items-center">
+                        <span class="mr-3 text-2xl"></span> Từ Vựng Mới
                     </h2>
-                    <div id="vocabContainer" class="space-y-3"></div>
-                    <p id="noVocab" class="text-blue-600 text-center py-6 text-base hidden">
-                        Chưa có từ vựng nào hôm nay ✨
-                    </p>
+
+                    <div id="vocabList" class="space-y-3">
+                        <p class="text-blue-700 text-center py-8" id="emptyVocabMessage">Chưa có từ vựng nào cho ngày này</p>
+                    </div>
+                </section>
+
+                <!-- Ăn uống & Chi tiêu -->
+                <div class="grid md:grid-cols-2 gap-6">
+                    <section class="bg-orange-50 rounded-xl p-6 border border-orange-200">
+                        <h2 class="text-xl font-semibold text-orange-900 mb-4">Ăn Uống</h2>
+                        <textarea id="meals" rows="4" placeholder="Sáng: bánh mì + trà sữa\nTrưa: cơm gà\nTối: salad"
+                                  class="w-full px-5 py-4 border-2 border-orange-300 rounded-xl focus:border-orange-500 resize-none text-base"></textarea>
+                    </section>
+
+                    <section class="bg-purple-50 rounded-xl p-6 border border-purple-200">
+                        <h2 class="text-xl font-semibold text-purple-900 mb-4">Chi Tiêu</h2>
+                        <input type="text" id="expenses" placeholder="Tổng: 350.000 VNĐ"
+                               class="w-full px-5 py-4 border-2 border-purple-300 rounded-xl focus:border-purple-500 text-base">
+                    </section>
                 </div>
 
-                <!-- Ăn Uống -->
-                <div class="bg-orange-50 rounded-xl p-6 border border-orange-200">
-                    <h2 class="text-lg font-semibold text-orange-900 mb-3">🍜 Ăn Uống</h2>
-                    <p id="mealsDisplay" class="text-base text-orange-800">Chưa lên kế hoạch...</p>
-                </div>
+                <!-- Thời gian thông báo email -->
+                <section class="bg-indigo-50 rounded-xl p-6 border border-indigo-200">
+                    <h2 class="text-xl font-semibold text-indigo-900 mb-5 flex items-center">
+                        <span class="mr-3 text-2xl"></span> Thời Gian Nhận Email Thông Báo
+                    </h2>
 
-                <!-- Chi Tiêu -->
-                <div class="bg-purple-50 rounded-xl p-6 border border-purple-200">
-                    <h2 class="text-lg font-semibold text-purple-900 mb-3">💰 Chi Tiêu</h2>
-                    <p id="expensesDisplay" class="text-base text-purple-800">0 VNĐ</p>
-                </div>
+                    <div class="grid sm:grid-cols-2 gap-6 mb-6">
+                        <div>
+                            <label class="block text-sm font-medium text-indigo-800 mb-2">Email chào buổi sáng</label>
+                            <input type="time" id="morningTime" class="w-full px-5 py-4 border-2 border-indigo-300 rounded-xl focus:border-indigo-500 text-base">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-indigo-800 mb-2">Email tổng kết buổi tối</label>
+                            <input type="time" id="eveningTime" class="w-full px-5 py-4 border-2 border-indigo-300 rounded-xl focus:border-indigo-500 text-base">
+                        </div>
+                    </div>
 
-                <div class="text-center pt-4">
-                    <a href="/" class="inline-block px-8 py-4 bg-gray-800 text-white rounded-xl font-medium hover:bg-gray-900 transition">
-                        ← Quay về lập kế hoạch
+                    <div class="bg-indigo-100 rounded-xl p-5 text-center text-indigo-900 font-medium">
+                        <p class="text-lg">Email sáng: <strong id="displayMorning">08:00</strong></p>
+                        <p class="text-lg mt-2">Email tối: <strong id="displayEvening">20:00</strong></p>
+                        <p class="text-sm mt-3 opacity-80">(Để trống → dùng mặc định 08:00 và 20:00)</p>
+                    </div>
+                </section>
+
+                <!-- Nút hành động -->
+                <div class="text-center pt-6 space-y-4 sm:space-y-0 sm:space-x-6 sm:flex sm:justify-center">
+                    <button onclick="savePlan()" 
+                            class="w-full sm:w-auto px-12 py-4 bg-green-600 text-white text-xl font-bold rounded-xl hover:bg-green-700 transition shadow-lg">
+                        Lưu Kế Hoạch
+                    </button>
+
+                    <a href="/today" 
+                       class="inline-block w-full sm:w-auto px-12 py-4 bg-gradient-to-r from-indigo-600 to-purple-600 text-white text-xl font-bold rounded-xl hover:from-indigo-700 hover:to-purple-700 transition shadow-lg text-center">
+                        Xem & Tick Hôm Nay
                     </a>
                 </div>
             </div>
@@ -63,89 +126,176 @@
     </div>
 
     <script>
-        let date = new Date().toISOString().slice(0, 10);
-        if (window.location.pathname.startsWith('/day/')) {
-            date = window.location.pathname.split('/day/')[1];
-        }
+        const datePicker = document.getElementById('datePicker');
+        const tasksList = document.getElementById('tasksList');
+        const vocabList = document.getElementById('vocabList');
+        const emptyVocabMessage = document.getElementById('emptyVocabMessage');
+        const morningTime = document.getElementById('morningTime');
+        const eveningTime = document.getElementById('eveningTime');
+        const displayMorning = document.getElementById('displayMorning');
+        const displayEvening = document.getElementById('displayEvening');
 
-        const dateObj = new Date(date);
-        document.getElementById('dateDisplay').textContent = dateObj.toLocaleDateString('vi-VN', {
-            weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
-        });
-        document.getElementById('pageTitle').textContent = 
-            date === new Date().toISOString().slice(0,10) ? 'Kế Hoạch Hôm Nay' : 'Kế Hoạch - ' + dateObj.toLocaleDateString('vi-VN', { day: 'numeric', month: 'long' });
+        datePicker.value = new Date().toISOString().slice(0, 10);
+
+        function updateTimeDisplay() {
+            displayMorning.textContent = morningTime.value || '08:00';
+            displayEvening.textContent = eveningTime.value || '20:00';
+        }
+        morningTime.addEventListener('change', updateTimeDisplay);
+        eveningTime.addEventListener('change', updateTimeDisplay);
+
+        datePicker.addEventListener('change', loadPlan);
+        loadPlan();
 
         async function loadPlan() {
-            const res = await fetch(`/api/plan/${date}`);
-            const plan = await res.json();
+            const date = datePicker.value;
+            if (!date) return;
 
-            const tasksContainer = document.getElementById('tasksContainer');
-            const noTasksMsg = document.getElementById('noTasks');
-            tasksContainer.innerHTML = '';
-            if (plan.tasks.length === 0) {
-                noTasksMsg.classList.remove('hidden');
-            } else {
-                noTasksMsg.classList.add('hidden');
-                plan.tasks.forEach((task, i) => {
-                    const div = document.createElement('div');
-                    div.className = `flex items-center space-x-4 p-5 rounded-xl border ${task.completed ? 'bg-green-50 border-green-300' : 'bg-gray-50 border-gray-300'}`;
-                    div.innerHTML = `
-                        <input type="checkbox" ${task.completed ? 'checked' : ''} 
-                               class="w-6 h-6 text-green-600 rounded focus:ring-green-500 cursor-pointer"
-                               onchange="toggleTask(${i})">
-                        <span class="text-base font-medium ${task.completed ? 'line-through text-gray-500' : 'text-gray-900'} flex-1">
-                            ${task.text}
-                        </span>
-                    `;
-                    tasksContainer.appendChild(div);
+            try {
+                const res = await fetch(`/api/plan/${date}`);
+                const plan = res.ok ? await res.json() : { tasks: [], vocab: [], meals: '', expenses: '', morningTime: null, eveningTime: null };
+
+                tasksList.innerHTML = '';
+                (plan.tasks || []).forEach(task => {
+                    const text = typeof task === 'object' ? task.text : task;
+                    const completed = typeof task === 'object' ? !!task.completed : false;
+                    addTaskToList(text, completed);
                 });
-            }
 
-            const vocabContainer = document.getElementById('vocabContainer');
-            const noVocabMsg = document.getElementById('noVocab');
-            vocabContainer.innerHTML = '';
-            if (plan.vocab.length === 0) {
-                noVocabMsg.classList.remove('hidden');
-            } else {
-                noVocabMsg.classList.add('hidden');
-                plan.vocab.forEach((item, i) => {
-                    const div = document.createElement('div');
-                    div.className = `flex items-center space-x-4 p-4 rounded-lg border ${item.completed ? 'bg-green-100 border-green-400' : 'bg-white border-blue-300'}`;
-                    div.innerHTML = `
-                        <input type="checkbox" ${item.completed ? 'checked' : ''} 
-                               class="w-6 h-6 text-blue-600 rounded focus:ring-blue-500 cursor-pointer"
-                               onchange="toggleVocab(${i})">
-                        <span class="text-base font-medium ${item.completed ? 'line-through text-gray-600' : 'text-blue-900'} flex-1">
-                            ${item.text}
-                        </span>
-                    `;
-                    vocabContainer.appendChild(div);
-                });
-            }
+                vocabList.innerHTML = '';
+                const vocabItems = (plan.vocab || []).map(v => ({
+                    text: typeof v === 'object' ? v.text : v,
+                    completed: typeof v === 'object' ? !!v.completed : false
+                })).filter(item => item.text?.trim());
 
-            document.getElementById('mealsDisplay').textContent = plan.meals || 'Chưa lên kế hoạch...';
-            document.getElementById('expensesDisplay').textContent = plan.expenses ? plan.expenses + ' VNĐ' : '0 VNĐ';
+                if (vocabItems.length === 0) {
+                    emptyVocabMessage.style.display = 'block';
+                } else {
+                    emptyVocabMessage.style.display = 'none';
+                    vocabItems.forEach(item => addVocabToList(item.text.trim(), item.completed));
+                }
+
+                document.getElementById('meals').value = plan.meals || '';
+                document.getElementById('expenses').value = plan.expenses || '';
+                morningTime.value = plan.morningTime || '';
+                eveningTime.value = plan.eveningTime || '';
+                updateTimeDisplay();
+
+            } catch (err) {
+                console.error('Lỗi load plan:', err);
+            }
         }
 
-        async function toggleTask(index) {
-            await fetch(`/api/plan/${date}/complete`, {
+        function addTaskToList(text, completed = false) {
+            if (!text.trim()) return;
+            const div = document.createElement('div');
+            div.className = 'flex items-center justify-between p-4 bg-gray-50 rounded-xl border border-gray-200 hover:bg-gray-100 transition';
+
+            div.innerHTML = `
+                <label class="flex items-center flex-1 cursor-pointer">
+                    <input type="checkbox" class="mr-4 w-6 h-6" ${completed ? 'checked' : ''}>
+                    <span class="text-base text-gray-800 ${completed ? 'line-through opacity-60' : ''}">${text.trim()}</span>
+                </label>
+                <button type="button" onclick="this.closest('div').remove()" class="text-red-600 hover:text-red-800 text-xl font-bold ml-4">×</button>
+            `;
+
+            // Bắt sự kiện tick/untick để cập nhật style ngay lập tức
+            div.querySelector('input[type="checkbox"]').addEventListener('change', function() {
+                const span = this.nextElementSibling;
+                if (this.checked) {
+                    span.classList.add('line-through', 'opacity-60');
+                } else {
+                    span.classList.remove('line-through', 'opacity-60');
+                }
+            });
+
+            tasksList.appendChild(div);
+        }
+
+        function addVocabToList(text, completed = false) {
+            if (!text.trim()) return;
+            const div = document.createElement('div');
+            div.className = 'flex items-center justify-between p-4 bg-blue-100 rounded-xl border border-blue-300 hover:bg-blue-200 transition';
+
+            div.innerHTML = `
+                <label class="flex items-center flex-1 cursor-pointer">
+                    <input type="checkbox" class="mr-4 w-6 h-6 text-blue-600 rounded focus:ring-blue-500" ${completed ? 'checked' : ''}>
+                    <span class="text-base text-blue-900 font-medium ${completed ? 'line-through opacity-60' : ''}">${text.trim()}</span>
+                </label>
+                <button type="button" onclick="this.closest('div').remove()" class="text-red-600 hover:text-red-800 text-xl font-bold ml-4">×</button>
+            `;
+
+            // Cập nhật style khi tick vocab
+            div.querySelector('input[type="checkbox"]').addEventListener('change', function() {
+                const span = this.nextElementSibling;
+                if (this.checked) {
+                    span.classList.add('line-through', 'opacity-60');
+                } else {
+                    span.classList.remove('line-through', 'opacity-60');
+                }
+            });
+
+            vocabList.appendChild(div);
+        }
+
+        function addTask() {
+            const input = document.getElementById('newTask');
+            const text = input.value.trim();
+            if (!text) return alert('Vui lòng nhập công việc!');
+            addTaskToList(text, false);
+            input.value = '';
+        }
+
+        document.getElementById('newTask').addEventListener('keypress', e => {
+            if (e.key === 'Enter') addTask();
+        });
+
+        // === PHẦN QUAN TRỌNG: GỬI LÊN CẢ COMPLETED ===
+        async function savePlan() {
+            const date = datePicker.value;
+            if (!date) return alert('Vui lòng chọn ngày!');
+
+            // Lấy tasks kèm trạng thái completed
+            const tasks = Array.from(tasksList.querySelectorAll('div')).map(div => {
+                const checkbox = div.querySelector('input[type="checkbox"]');
+                const text = div.querySelector('span').textContent.trim();
+                return {
+                    text,
+                    completed: checkbox.checked
+                };
+            });
+
+            // Lấy vocab kèm trạng thái completed
+            const vocab = Array.from(vocabList.querySelectorAll('div')).map(div => {
+                const checkbox = div.querySelector('input[type="checkbox"]');
+                const text = div.querySelector('span').textContent.trim();
+                return {
+                    text,
+                    completed: checkbox.checked
+                };
+            });
+
+            const res = await fetch('/api/plan', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ taskIndex: index })
+                body: JSON.stringify({
+                    date,
+                    tasks,        // ← giờ là array object { text, completed }
+                    vocab,        // ← giờ cũng là array object
+                    meals: document.getElementById('meals').value,
+                    expenses: document.getElementById('expenses').value,
+                    morningTime: morningTime.value || null,
+                    eveningTime: eveningTime.value || null
+                })
             });
-            loadPlan();
-        }
 
-        async function toggleVocab(index) {
-            await fetch(`/api/plan/${date}/vocab-complete`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ vocabIndex: index })
-            });
-            loadPlan();
+            if (res.ok) {
+                alert('Lưu kế hoạch thành công!');
+                updateTimeDisplay();
+            } else {
+                alert('Có lỗi khi lưu. Vui lòng thử lại.');
+            }
         }
-
-        loadPlan();
     </script>
 </body>
 </html>

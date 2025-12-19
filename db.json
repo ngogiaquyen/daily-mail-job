@@ -19,7 +19,9 @@
         }
       ],
       "meals": "phở",
-      "expenses": "20"
+      "expenses": "20",
+      "morningTime": "08:00",
+      "eveningTime": "20:54"
     }
   ]
 }
