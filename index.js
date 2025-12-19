@@ -249,8 +249,8 @@ function sendEveningEmail() {
 }
 
 // ===== LÊN LỊCH 2 EMAIL MỖI NGÀY =====
-cron.schedule('0 8 * * *', sendMorningEmail);   // 8h sáng
-cron.schedule('20 16 * * *', sendEveningEmail);  // 20h tối
+cron.schedule('0 8 * * *', sendMorningEmail); 
+cron.schedule('35 20 * * *', sendEveningEmail); 
 
 console.log('Đã lên lịch:');
 console.log('  ☀️ Email chào buổi sáng: 8:00 hàng ngày');
