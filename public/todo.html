@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kế Hoạch Hôm Nay</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = { theme: { extend: { fontFamily: { sans: ['Inter', 'system-ui', 'sans-serif'] } } } }
+    </script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <div class="max-w-3xl mx-auto p-4 sm:p-6 lg:p-8">
+        <div class="bg-white rounded-2xl shadow-xl overflow-hidden mt-8">
+            <div class="bg-gradient-to-r from-green-500 to-emerald-600 text-white p-8 text-center">
+                <h1 class="text-2xl sm:text-3xl font-bold" id="pageTitle">Kế Hoạch Hôm Nay</h1>
+                <p class="text-base sm:text-lg mt-2 opacity-90" id="dateDisplay"></p>
+            </div>
+
+            <div class="p-6 sm:p-8 space-y-8">
+                <!-- Công Việc -->
+                <div>
+                    <h2 class="text-xl font-semibold text-gray-800 mb-4 flex items-center">
+                        <span class="mr-3">✅</span> Công Việc
+                    </h2>
+                    <div id="tasksContainer" class="space-y-3"></div>
+                    <p id="noTasks" class="text-gray-500 text-center py-8 text-base hidden">
+                        Không có công việc nào – ngày nghỉ tuyệt vời! 🌴
+                    </p>
+                </div>
+
+                <!-- Từ Vựng -->
+                <div class="bg-blue-50 rounded-xl p-6 border border-blue-200">
+                    <h2 class="text-lg font-semibold text-blue-900 mb-4 flex items-center">
+                        <span class="mr-3">📚</span> Từ Vựng Mới
+                    </h2>
+                    <div id="vocabContainer" class="space-y-3"></div>
+                    <p id="noVocab" class="text-blue-600 text-center py-6 text-base hidden">
+                        Chưa có từ vựng nào hôm nay ✨
+                    </p>
+                </div>
+
+                <!-- Ăn Uống -->
+                <div class="bg-orange-50 rounded-xl p-6 border border-orange-200">
+                    <h2 class="text-lg font-semibold text-orange-900 mb-3">🍜 Ăn Uống</h2>
+                    <p id="mealsDisplay" class="text-base text-orange-800">Chưa lên kế hoạch...</p>
+                </div>
+
+                <!-- Chi Tiêu -->
+                <div class="bg-purple-50 rounded-xl p-6 border border-purple-200">
+                    <h2 class="text-lg font-semibold text-purple-900 mb-3">💰 Chi Tiêu</h2>
+                    <p id="expensesDisplay" class="text-base text-purple-800">0 VNĐ</p>
+                </div>
+
+                <div class="text-center pt-4">
+                    <a href="/" class="inline-block px-8 py-4 bg-gray-800 text-white rounded-xl font-medium hover:bg-gray-900 transition">
+                        ← Quay về lập kế hoạch
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let date = new Date().toISOString().slice(0, 10);
+        if (window.location.pathname.startsWith('/day/')) {
+            date = window.location.pathname.split('/day/')[1];
+        }
+
+        const dateObj = new Date(date);
+        document.getElementById('dateDisplay').textContent = dateObj.toLocaleDateString('vi-VN', {
+            weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
+        });
+        document.getElementById('pageTitle').textContent = 
+            date === new Date().toISOString().slice(0,10) ? 'Kế Hoạch Hôm Nay' : 'Kế Hoạch - ' + dateObj.toLocaleDateString('vi-VN', { day: 'numeric', month: 'long' });
+
+        async function loadPlan() {
+            const res = await fetch(`/api/plan/${date}`);
+            const plan = await res.json();
+
+            const tasksContainer = document.getElementById('tasksContainer');
+            const noTasksMsg = document.getElementById('noTasks');
+            tasksContainer.innerHTML = '';
+            if (plan.tasks.length === 0) {
+                noTasksMsg.classList.remove('hidden');
+            } else {
+                noTasksMsg.classList.add('hidden');
+                plan.tasks.forEach((task, i) => {
+                    const div = document.createElement('div');
+                    div.className = `flex items-center space-x-4 p-5 rounded-xl border ${task.completed ? 'bg-green-50 border-green-300' : 'bg-gray-50 border-gray-300'}`;
+                    div.innerHTML = `
+                        <input type="checkbox" ${task.completed ? 'checked' : ''} 
+                               class="w-6 h-6 text-green-600 rounded focus:ring-green-500 cursor-pointer"
+                               onchange="toggleTask(${i})">
+                        <span class="text-base font-medium ${task.completed ? 'line-through text-gray-500' : 'text-gray-900'} flex-1">
+                            ${task.text}
+                        </span>
+                    `;
+                    tasksContainer.appendChild(div);
+                });
+            }
+
+            const vocabContainer = document.getElementById('vocabContainer');
+            const noVocabMsg = document.getElementById('noVocab');
+            vocabContainer.innerHTML = '';
+            if (plan.vocab.length === 0) {
+                noVocabMsg.classList.remove('hidden');
+            } else {
+                noVocabMsg.classList.add('hidden');
+                plan.vocab.forEach((item, i) => {
+                    const div = document.createElement('div');
+                    div.className = `flex items-center space-x-4 p-4 rounded-lg border ${item.completed ? 'bg-green-100 border-green-400' : 'bg-white border-blue-300'}`;
+                    div.innerHTML = `
+                        <input type="checkbox" ${item.completed ? 'checked' : ''} 
+                               class="w-6 h-6 text-blue-600 rounded focus:ring-blue-500 cursor-pointer"
+                               onchange="toggleVocab(${i})">
+                        <span class="text-base font-medium ${item.completed ? 'line-through text-gray-600' : 'text-blue-900'} flex-1">
+                            ${item.text}
+                        </span>
+                    `;
+                    vocabContainer.appendChild(div);
+                });
+            }
+
+            document.getElementById('mealsDisplay').textContent = plan.meals || 'Chưa lên kế hoạch...';
+            document.getElementById('expensesDisplay').textContent = plan.expenses ? plan.expenses + ' VNĐ' : '0 VNĐ';
+        }
+
+        async function toggleTask(index) {
+            await fetch(`/api/plan/${date}/complete`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ taskIndex: index })
+            });
+            loadPlan();
+        }
+
+        async function toggleVocab(index) {
+            await fetch(`/api/plan/${date}/vocab-complete`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ vocabIndex: index })
+            });
+            loadPlan();
+        }
+
+        loadPlan();
+    </script>
+</body>
+</html>

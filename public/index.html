@@ -3,66 +3,167 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Đánh giá dịch vụ</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            max-width: 600px;
-            margin: 0 auto;
-            padding: 20px;
-            text-align: center;
+    <title>Lập Kế Hoạch Hàng Ngày</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['Inter', 'system-ui', 'sans-serif'] }
+                }
+            }
         }
-        .rating {
-            margin: 20px 0;
-        }
-        .star {
-            font-size: 30px;
-            cursor: pointer;
-            color: #ccc;
-        }
-        .star.selected {
-            color: gold;
-        }
-        textarea {
-            width: 100%;
-            height: 100px;
-            margin: 10px 0;
-        }
-        button {
-            padding: 10px 20px;
-            background-color: #4CAF50;
-            color: white;
-            border: none;
-            cursor: pointer;
-        }
-        button:hover {
-            background-color: #45a049;
-        }
-    </style>
+    </script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 </head>
-<body>
-    <h1>Đánh giá dịch vụ của chúng tôi</h1>
-    <form action="/submit-review" method="POST">
-        <div class="rating">
-            <span class="star" onclick="rate(1)">★</span>
-            <span class="star" onclick="rate(2)">★</span>
-            <span class="star" onclick="rate(3)">★</span>
-            <span class="star" onclick="rate(4)">★</span>
-            <span class="star" onclick="rate(5)">★</span>
+<body class="bg-gray-50 min-h-screen">
+    <div class="max-w-3xl mx-auto p-4 sm:p-6 lg:p-8">
+        <div class="bg-white rounded-2xl shadow-xl overflow-hidden mt-8">
+            <!-- Header -->
+            <div class="bg-gradient-to-r from-indigo-500 to-green-500 text-white p-8 text-center">
+                <h1 class="text-2xl sm:text-3xl font-bold">📅 Lập Kế Hoạch Hàng Ngày</h1>
+                <p class="text-base sm:text-lg mt-2 opacity-90">Lên kế hoạch để ngày hôm nay thật hiệu quả!</p>
+            </div>
+
+            <div class="p-6 sm:p-8 space-y-8">
+                <!-- Chọn ngày -->
+                <div class="text-center">
+                    <label class="text-lg font-semibold text-gray-700 block mb-3">Chọn ngày</label>
+                    <input type="date" id="datePicker" class="px-5 py-3 text-base border-2 border-gray-300 rounded-xl focus:border-indigo-500 focus:outline-none w-full max-w-xs">
+                </div>
+
+                <form id="planForm">
+                    <!-- Công việc -->
+                    <div>
+                        <h2 class="text-xl font-semibold text-gray-800 mb-4 flex items-center">
+                            <span class="mr-3">✅</span> Công Việc Cần Làm
+                        </h2>
+                        <div id="tasksList" class="space-y-3 mb-5"></div>
+                        <div class="flex flex-col sm:flex-row gap-3">
+                            <input type="text" id="newTask" placeholder="Nhập công việc mới..." 
+                                   class="flex-1 px-5 py-3 border-2 border-gray-300 rounded-xl focus:border-indigo-500 focus:outline-none">
+                            <button type="button" onclick="addTask()" 
+                                    class="px-6 py-3 bg-indigo-600 text-white rounded-xl font-medium hover:bg-indigo-700 transition">
+                                Thêm
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Từ vựng -->
+                    <div class="bg-blue-50 rounded-xl p-6 border border-blue-200">
+                        <h2 class="text-lg font-semibold text-blue-900 mb-4 flex items-center">
+                            <span class="mr-3">📚</span> Từ Vựng Mới
+                        </h2>
+                        <textarea id="vocab" rows="5" placeholder="Mỗi dòng một từ...&#10;apple - quả táo&#10;beautiful - xinh đẹp"
+                                  class="w-full px-4 py-3 text-base border-2 border-blue-300 rounded-xl focus:border-blue-500 focus:outline-none resize-none"></textarea>
+                    </div>
+
+                    <!-- Ăn uống -->
+                    <div class="bg-orange-50 rounded-xl p-6 border border-orange-200">
+                        <h2 class="text-lg font-semibold text-orange-900 mb-3">🍜 Ăn Uống</h2>
+                        <textarea id="meals" rows="3" placeholder="Sáng: phở&#10;Trưa: cơm tấm..."
+                                  class="w-full px-4 py-3 text-base border-2 border-orange-300 rounded-xl focus:border-orange-500 focus:outline-none resize-none"></textarea>
+                    </div>
+
+                    <!-- Chi tiêu -->
+                    <div class="bg-purple-50 rounded-xl p-6 border border-purple-200">
+                        <h2 class="text-lg font-semibold text-purple-900 mb-3">💰 Chi Tiêu</h2>
+                        <input type="text" id="expenses" placeholder="500.000 VNĐ"
+                               class="w-full px-4 py-3 text-base border-2 border-purple-300 rounded-xl focus:border-purple-500 focus:outline-none">
+                    </div>
+
+                    <!-- Nút hành động -->
+                    <div class="flex flex-col sm:flex-row justify-center gap-4 pt-4">
+                        <button type="button" onclick="savePlan()"
+                                class="w-full sm:w-auto px-10 py-4 bg-green-600 text-white text-lg font-bold rounded-xl hover:bg-green-700 transition shadow">
+                            💾 Lưu Kế Hoạch
+                        </button>
+                        <a href="/today" 
+                           class="w-full sm:w-auto px-10 py-4 bg-gray-700 text-white text-lg font-bold rounded-xl hover:bg-gray-800 transition shadow text-center block">
+                            👀 Xem & Tick Hôm Nay
+                        </a>
+                    </div>
+                </form>
+            </div>
         </div>
-        <input type="hidden" name="rating" id="rating" value="0">
-        <textarea name="comment" placeholder="Nhận xét của bạn..." required></textarea>
-        <button type="submit">Gửi đánh giá</button>
-    </form>
+    </div>
 
     <script>
-        function rate(value) {
-            document.getElementById('rating').value = value;
-            const stars = document.querySelectorAll('.star');
-            stars.forEach((star, index) => {
-                star.classList.toggle('selected', index < value);
-            });
+        const datePicker = document.getElementById('datePicker');
+        const tasksList = document.getElementById('tasksList');
+        let currentTasks = [];
+
+        datePicker.value = new Date().toISOString().slice(0, 10);
+        loadPlan();
+
+        async function loadPlan() {
+            const date = datePicker.value;
+            const res = await fetch(`/api/plan/${date}`);
+            const plan = await res.json();
+
+            tasksList.innerHTML = '';
+            currentTasks = [];
+            plan.tasks.forEach(task => addTaskToList(task.text));
+
+            document.getElementById('vocab').value = plan.vocab.map(v => v.text).join('\n');
+            document.getElementById('meals').value = plan.meals;
+            document.getElementById('expenses').value = plan.expenses;
         }
+
+        function addTaskToList(text) {
+            if (!text.trim()) return;
+            const div = document.createElement('div');
+            div.className = 'flex items-center justify-between p-4 bg-gray-100 rounded-xl border border-gray-200';
+            div.innerHTML = `
+                <span class="text-base font-medium text-gray-800">${text.trim()}</span>
+                <button type="button" class="text-red-600 hover:text-red-800 font-bold text-xl">×</button>
+            `;
+            div.querySelector('button').onclick = () => {
+                div.remove();
+                updateCurrentTasks();
+            };
+            tasksList.appendChild(div);
+            currentTasks.push(text.trim());
+        }
+
+        function updateCurrentTasks() {
+            currentTasks = Array.from(tasksList.querySelectorAll('span')).map(span => span.textContent.trim());
+        }
+
+        function addTask() {
+            const input = document.getElementById('newTask');
+            const text = input.value.trim();
+            if (!text) return alert('Vui lòng nhập công việc!');
+            addTaskToList(text);
+            input.value = '';
+        }
+
+        document.getElementById('newTask').addEventListener('keypress', e => {
+            if (e.key === 'Enter') addTask();
+        });
+
+        async function savePlan() {
+            updateCurrentTasks();
+            const date = datePicker.value;
+            const tasks = currentTasks;
+            const vocab = document.getElementById('vocab').value;
+            const meals = document.getElementById('meals').value;
+            const expenses = document.getElementById('expenses').value;
+
+            const res = await fetch('/api/plan', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ date, tasks, vocab, meals, expenses })
+            });
+
+            if (res.ok) {
+                alert(`🎉 Lưu thành công! (${tasks.length} công việc)`);
+            } else {
+                alert('❌ Lỗi khi lưu');
+            }
+        }
+
+        datePicker.addEventListener('change', loadPlan);
     </script>
 </body>
 </html>
