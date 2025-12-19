@@ -15,7 +15,7 @@ mongoose.connect(process.env.MONGODB_URI)
     process.exit(1);
   });
 
-// Schema cho Plan
+// Schema cho Plan - vocab giờ là array object
 const planSchema = new mongoose.Schema({
     date: { type: String, required: true, unique: true }, // YYYY-MM-DD
     tasks: [{
@@ -23,12 +23,14 @@ const planSchema = new mongoose.Schema({
         completed: { type: Boolean, default: false }
     }],
     vocab: [{
-        text: String,
+        hanzi: String,
+        pinyin: String,
+        meaning: String,
         completed: { type: Boolean, default: false }
     }],
     meals: { type: String, default: '' },
     expenses: { type: String, default: '' },
-    morningTime: { type: String, default: null }, // HH:MM hoặc null
+    morningTime: { type: String, default: null },
     eveningTime: { type: String, default: null }
 });
 
@@ -111,30 +113,40 @@ app.post('/api/plan/:date/vocab-complete', async (req, res) => {
 });
 
 // API: Lưu kế hoạch
-// API: Lưu kế hoạch - Hỗ trợ cả 2 định dạng cũ và mới để tránh lỗi
 app.post('/api/plan', async (req, res) => {
     try {
         let { date, tasks = [], vocab = [], meals = '', expenses = '', morningTime, eveningTime } = req.body;
 
-        // Chuẩn hóa tasks: nếu client gửi array string → chuyển thành object
+        // Chuẩn hóa tasks
         if (tasks.length > 0 && typeof tasks[0] === 'string') {
             tasks = tasks.map(text => ({ text: text.trim(), completed: false }));
         } else if (tasks.length > 0) {
-            // Đảm bảo mỗi task là object hợp lệ
             tasks = tasks.map(task => ({
                 text: typeof task === 'object' && task.text ? task.text.trim() : '',
                 completed: !!task.completed
             })).filter(task => task.text);
         }
+        
 
-        // Chuẩn hóa vocab tương tự
-        if (vocab.length > 0 && typeof vocab[0] === 'string') {
-            vocab = vocab.map(text => ({ text: text.trim(), completed: false }));
-        } else if (vocab.length > 0) {
-            vocab = vocab.map(item => ({
-                text: typeof item === 'object' && item.text ? item.text.trim() : '',
-                completed: !!item.completed
-            })).filter(item => item.text);
+        // Chuẩn hóa vocab (hỗ trợ cả dạng cũ nếu có)
+        if (vocab.length > 0) {
+            if (typeof vocab[0] === 'string') {
+                // Dạng cũ: chuyển về object đơn giản
+                vocab = vocab.map(line => {
+                    const match = line.trim().match(/(.*?)\s*-\s*(.*)/);
+                    if (match) {
+                        return { hanzi: '', pinyin: match[1].trim(), meaning: match[2].trim(), completed: false };
+                    }
+                    return null;
+                }).filter(v => v);
+            } else {
+                vocab = vocab.map(item => ({
+                    hanzi: item.hanzi?.trim() || '',
+                    pinyin: item.pinyin?.trim() || '',
+                    meaning: item.meaning?.trim() || '',
+                    completed: !!item.completed
+                })).filter(v => v.hanzi || v.pinyin || v.meaning);
+            }
         }
 
         const updatedData = {
@@ -146,8 +158,6 @@ app.post('/api/plan', async (req, res) => {
             morningTime: morningTime || null,
             eveningTime: eveningTime || null
         };
-
-        console.log('Đã chuẩn hóa và lưu kế hoạch:', updatedData);
 
         await Plan.findOneAndUpdate(
             { date },
@@ -244,7 +254,7 @@ async function sendEveningEmail() {
     }
 }
 
-// ===== BIẾN THEO DÕI NGÀY ĐÃ GỬI EMAIL (reset mỗi ngày mới) =====
+// ===== BIẾN THEO DÕI NGÀY ĐÃ GỬI EMAIL =====
 let lastMorningSentDate = null;
 let lastEveningSentDate = null;
 
@@ -260,13 +270,11 @@ async function checkAndSendEmails() {
         const morningTime = plan?.morningTime || '08:00';
         const eveningTime = plan?.eveningTime || '20:00';
 
-        // Gửi email sáng nếu đúng giờ và chưa gửi hôm nay
         if (currentMinute === morningTime && lastMorningSentDate !== today) {
             await sendMorningEmail();
             lastMorningSentDate = today;
         }
 
-        // Gửi email tối nếu đúng giờ và chưa gửi hôm nay
         if (currentMinute === eveningTime && lastEveningSentDate !== today) {
             await sendEveningEmail();
             lastEveningSentDate = today;
@@ -276,9 +284,8 @@ async function checkAndSendEmails() {
     }
 }
 
-// Chạy kiểm tra mỗi phút
 setInterval(checkAndSendEmails, 60 * 1000);
-checkAndSendEmails(); // Chạy ngay khi khởi động
+checkAndSendEmails();
 
 // ===== KHỞI ĐỘNG SERVER =====
 app.listen(port, '0.0.0.0', () => {

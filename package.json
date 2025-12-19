@@ -4,7 +4,7 @@
     "description": "Hệ thống đánh giá dịch vụ",
     "main": "index.js",
     "scripts": {
-        "start": "node index.js"
+        "start": "nodemon index.js"
     },
     "dependencies": {
         "body-parser": "^1.19.0",
