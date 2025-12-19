@@ -250,7 +250,7 @@ function sendEveningEmail() {
 
 // ===== LÊN LỊCH 2 EMAIL MỖI NGÀY =====
 cron.schedule('0 8 * * *', sendMorningEmail); 
-cron.schedule('35 20 * * *', sendEveningEmail);;
+cron.schedule('35 20 * * *', sendEveningEmail);
 
 
 console.log('Đã lên lịch:');
