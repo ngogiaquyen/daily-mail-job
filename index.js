@@ -3,7 +3,7 @@ const nodemailer = require('nodemailer');
 const { GoogleGenerativeAI } = require("@google/generative-ai");
 
 // ===== CẤU HÌNH =====
-const MORNING_TIME = '09:12';  // Giờ gửi email hàng ngày (giờ Việt Nam)
+const MORNING_TIME = '09:21';  // Giờ gửi email hàng ngày (giờ Việt Nam)
 
 const LATITUDE = 21.5942;
 const LONGITUDE = 105.8482;
@@ -100,10 +100,7 @@ function formatDateDDMMYYYY(date) {
 
 // ===== HÀM CHUYỂN ĐỔI THỜI GIAN VỀ GIỜ VIỆT NAM (UTC+7) =====
 function getVietnamTime() {
-    const now = new Date();
-    // UTC + 7 giờ = Việt Nam
-    const vietnamTime = new Date(now.getTime() + 7 * 60 * 60 * 1000);
-    return vietnamTime;
+    return new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Ho_Chi_Minh" }));
 }
 
 // ===== GỬI EMAIL BUỔI SÁNG =====
@@ -204,7 +201,7 @@ function checkAndSendEmail() {
 }
 
 // Chạy ngay khi khởi động (để test - có thể comment lại sau khi deploy)
-sendMorningEmail();
+// sendMorningEmail();
 
 setInterval(checkAndSendEmail, 60 * 1000);
 checkAndSendEmail();
