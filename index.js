@@ -3,8 +3,8 @@ const nodemailer = require('nodemailer');
 const { GoogleGenerativeAI } = require("@google/generative-ai");
 
 // ===== CẤU HÌNH =====
-const MORNING_TIME = '09:21';
-const TIME_TEST = process.env.TIME_TEST || '09:21';  // Giờ gửi email hàng ngày (giờ Việt Nam)
+const MORNING_TIME = '08:00';
+const TIME_TEST = process.env.TIME_TEST;  // Giờ gửi email hàng ngày (giờ Việt Nam)
 console.log("time test", process.env.TIME_TEST);
 
 const LATITUDE = 21.5942;
@@ -200,7 +200,7 @@ function checkAndSendEmail() {
         lastMorningSentDate = todayKey;
     }
     
-    if (currentTime === TIME_TEST && lastMorningSentDate !== todayKey) {
+    if (TIME_TEST && currentTime === TIME_TEST && lastMorningSentDate !== todayKey) {
         console.log(`🔔 TEST ${TIME_TEST} giờ Việt Nam - Đang gửi email...`);
         sendMorningEmail();
         lastMorningSentDate = todayKey;
@@ -212,3 +212,6 @@ checkAndSendEmail();
 
 console.log('🚀 Script gửi email buổi sáng đang chạy...');
 console.log(`🔔 Email sẽ được gửi lúc: ${MORNING_TIME} hàng ngày (giờ Việt Nam)`);
+if(TIME_TEST) {
+    console.log(`🧪 Chế độ TEST: Email sẽ được gửi lúc ${TIME_TEST} (giờ Việt Nam)`);
+}
