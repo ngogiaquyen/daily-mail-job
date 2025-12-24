@@ -3,11 +3,10 @@ const nodemailer = require('nodemailer');
 const { GoogleGenerativeAI } = require("@google/generative-ai");
 
 // ===== CẤU HÌNH =====
-const MORNING_TIME = '09:21';  // Giờ gửi email hàng ngày (giờ Việt Nam)
-
+const MORNING_TIME = process.env.TIME_TEST || '09:21';  // Giờ gửi email hàng ngày (giờ Việt Nam)
+console.log("time test", process.env.TIME_TEST);
 const LATITUDE = 21.5942;
 const LONGITUDE = 105.8482;
-const CITY_NAME = 'Thái Nguyên';
 
 // ===== GEMINI AI SETUP =====
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
